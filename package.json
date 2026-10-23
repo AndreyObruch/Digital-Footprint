@@ -1,0 +1,12 @@
+{
+  "name": "digital-footprint",
+  "version": "0.1.0",
+  "description": "AI-агент поиска цифровых следов предков в открытых архивах",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
