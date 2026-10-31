@@ -76,7 +76,7 @@ app.get('/search', (req, res) => {
   res.status(200).json(doSearch(String(req.query.q || '').trim()));
 });
 
-const PAGE = `<!DOCTYPE html>
+const PAGE = String.raw`<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -134,18 +134,18 @@ const PAGE = `<!DOCTYPE html>
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
   function nrm(s) {
-    return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9 ]/g, ' ').replace(/\\s+/g, ' ').trim();
+    return String(s == null ? '' : s).toLowerCase().replace(/ё/g, 'е').replace(/[^а-яa-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
   }
-  // Подсветка совпавших слов прямо в тексте карточки.
   function hl(text, words) {
     var t = String(text == null ? '' : text);
     if (!words || !words.length) return esc(t);
-    var re = new RegExp('(' + words.map(function (w) {
-      return w.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
-    }).join('|') + ')', 'gi');
-    // Экранируем HTML, затем подставляем <mark> по нормализованным совпадениям.
-    var safe = esc(t);
-    return safe.replace(re, function (m) { return '<mark>' + m + '</mark>'; });
+    var set = {};
+    words.forEach(function (w) { set[nrm(w)] = true; });
+    return t.split(/([а-яa-z0-9ёЁ]+)/g).map(function (part) {
+      var n = nrm(part);
+      if (n && set[n]) return '<mark>' + esc(part) + '</mark>';
+      return esc(part);
+    }).join('');
   }
 
   function render(data) {
