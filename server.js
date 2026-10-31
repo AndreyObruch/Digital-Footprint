@@ -32,7 +32,7 @@ function recordHaystack(r) {
 function doSearch(q) {
   const words = queryWords(q);
   if (!words.length) {
-    return { query: q, count: 0, results: [], message: 'Введите фамилию, имя, год или место — хотя бы одно слово.' };
+    return { query: q, count: 0, results: [], message: 'Введите хотя бы один якорь — фамилию, имя, год, место, звание или часть.' };
   }
   let records;
   try { records = store.loadAll(); }
@@ -64,7 +64,7 @@ function doSearch(q) {
     results: top,
     message: top.length
       ? 'Найдено записей: ' + top.length + '. Переходи по ссылке на первоисточник и проверяй сам.'
-      : 'Ничего не найдено по этим словам. Сервис не сочиняет версии — попробуй другие слова или добавь запись в индекс.'
+      : 'Ничего не найдено по этим якорям. Сервис не сочиняет версии — добавь или поменяй якоря (отчество, год, место, звание/часть).'
   };
 }
 
@@ -97,13 +97,19 @@ const PAGE = String.raw`<!DOCTYPE html>
   main { max-width:760px; margin:0 auto; padding:28px 20px 64px; }
   h1 { font-size:24px; margin:0 0 6px; }
   h2 { font-size:18px; margin:0 0 8px; }
-  p.lead { color:var(--mut); margin:0 0 24px; }
-  form { display:flex; gap:8px; margin-bottom:8px; }
-  input[type=text] { flex:1; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#0b0d12; color:var(--fg); font-size:16px; }
-  input[type=text]:focus { outline:none; border-color:var(--acc); }
-  button { padding:12px 18px; border:0; border-radius:10px; background:var(--acc); color:#1a1400; font-size:16px; font-weight:600; cursor:pointer; }
-  button:hover { filter:brightness(1.08); }
-  .hint { color:var(--mut); font-size:13px; margin:0 0 20px; }
+  p.lead { color:var(--mut); margin:0 0 20px; }
+  .fields { display:grid; grid-template-columns:repeat(2,1fr); gap:10px 12px; margin-bottom:12px; }
+  .field label { display:block; font-size:13px; color:var(--mut); margin-bottom:4px; }
+  .field input { width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:#0b0d12; color:var(--fg); font-size:15px; }
+  .field input:focus { outline:none; border-color:var(--acc); }
+  .field.full { grid-column:1 / -1; }
+  .field .sub { font-size:12px; color:var(--mut); margin-top:4px; }
+  .actions { display:flex; gap:8px; align-items:center; }
+  button.go { padding:12px 22px; border:0; border-radius:10px; background:var(--acc); color:#1a1400; font-size:16px; font-weight:600; cursor:pointer; }
+  button.go:hover { filter:brightness(1.08); }
+  button.reset { padding:12px 16px; border:1px solid var(--line); border-radius:10px; background:transparent; color:var(--mut); font-size:14px; font-weight:600; cursor:pointer; }
+  button.reset:hover { color:var(--fg); border-color:var(--acc); }
+  .hint { color:var(--mut); font-size:13px; margin:10px 0 20px; }
   #status { min-height:20px; margin:0 0 16px; font-size:14px; }
   #status.err { color:#ff8a8a; }
   .card { border:1px solid var(--line); border-radius:12px; background:var(--card); padding:14px 16px; margin-bottom:12px; }
@@ -129,12 +135,23 @@ const PAGE = String.raw`<!DOCTYPE html>
 </header>
 <main>
   <section id="view-search">
-    <p class="lead">Напиши обычными словами то, что знаешь о человеке — фамилию, имя, примерный год, место. Сервис найдёт записи в открытых архивах и покажет ссылку на первоисточник. Ничего не выдумываем: если не найдено — так и скажем.</p>
+    <p class="lead">Заполни то, что знаешь. Чем больше якорей — тем точнее подборка; пустые поля не мешают. Сервис ищет по открытым архивам и показывает ссылку на первоисточник. Ничего не выдумываем: если не найдено — так и скажем.</p>
     <form id="f" autocomplete="off">
-      <input type="text" id="q" name="q" placeholder="Например: Обруч Николай красноармеец" aria-label="Что вы знаете о человеке">
-      <button type="submit">Найти</button>
+      <div class="fields">
+        <div class="field"><label for="lastName">Фамилия</label><input type="text" id="lastName" name="lastName" placeholder="Обруч"></div>
+        <div class="field"><label for="firstName">Имя</label><input type="text" id="firstName" name="firstName" placeholder="Николай"></div>
+        <div class="field"><label for="middleName">Отчество</label><input type="text" id="middleName" name="middleName" placeholder="Фёдорович"></div>
+        <div class="field"><label for="year">Примерный год</label><input type="text" id="year" name="year" placeholder="1941 или 1941-1945"></div>
+        <div class="field"><label for="place">Место</label><input type="text" id="place" name="place" placeholder="волость, уезд, губерния"></div>
+        <div class="field"><label for="rankUnit">Звание / часть</label><input type="text" id="rankUnit" name="rankUnit" placeholder="красноармеец, 26 зап. эшелон"></div>
+        <div class="field full"><label for="anchor">Семейный документ-якорь 🔧</label><input type="text" id="anchor" name="anchor" placeholder="напр.: отчество из свидетельства о рождении сына — 16.06.1936, Алма-Ата"><div class="sub">🔧 заглушка: пока только текстовая подсказка-якорь, загрузка файла и разбор документа — позже (шаг 6/7 плана).</div></div>
+      </div>
+      <div class="actions">
+        <button type="submit" class="go">Найти</button>
+        <button type="button" class="reset" id="resetBtn">Сбросить</button>
+      </div>
     </form>
-    <p class="hint">Подсказка: чем больше слов (фамилия + имя + год/место/звание), тем точнее подборка.</p>
+    <p class="hint">Подсказка: якорь из семейного документа (отчество, точная дата, место) схлопывает шум однофамильцев — это проверено на контрольном кейсе.</p>
     <p id="status" role="status" aria-live="polite"></p>
     <div id="results"></div>
   </section>
@@ -148,9 +165,10 @@ const PAGE = String.raw`<!DOCTYPE html>
 <script>
 (function () {
   var f = document.getElementById('f');
-  var qEl = document.getElementById('q');
   var statusEl = document.getElementById('status');
   var resEl = document.getElementById('results');
+  var resetBtn = document.getElementById('resetBtn');
+  var ANCHOR_IDS = ['lastName', 'firstName', 'middleName', 'year', 'place', 'rankUnit', 'anchor'];
 
   function esc(s) {
     return String(s == null ? '' : s)
@@ -170,6 +188,17 @@ const PAGE = String.raw`<!DOCTYPE html>
       if (n && set[n]) return '<mark>' + esc(part) + '</mark>';
       return esc(part);
     }).join('');
+  }
+
+  // Собираем непустые якоря в строку слов; пустые поля отсекаются и не ломают поиск.
+  function collectQuery() {
+    var parts = [];
+    ANCHOR_IDS.forEach(function (id) {
+      var el = document.getElementById(id);
+      var v = el ? el.value.trim() : '';
+      if (v) parts.push(v);
+    });
+    return parts.join(' ');
   }
 
   function render(data) {
@@ -197,20 +226,27 @@ const PAGE = String.raw`<!DOCTYPE html>
     });
   }
 
-  f.addEventListener('submit', function (e) {
-    e.preventDefault();
-    var q = qEl.value.trim();
+  function runSearch() {
+    var q = collectQuery();
     statusEl.className = '';
     statusEl.textContent = q ? 'Ищем…' : '';
     fetch('/search?q=' + encodeURIComponent(q))
       .then(function (r) { return r.json(); })
       .then(render)
       .catch(function () { statusEl.className = 'err'; statusEl.textContent = 'Не удалось связаться с сервером.'; });
+  }
+
+  f.addEventListener('submit', function (e) { e.preventDefault(); runSearch(); });
+  resetBtn.addEventListener('click', function () {
+    ANCHOR_IDS.forEach(function (id) { var el = document.getElementById(id); if (el) el.value = ''; });
+    resEl.innerHTML = '';
+    statusEl.className = '';
+    statusEl.textContent = '';
   });
 })();
 </script>
 <script>
-// Маршрутизация экранов (шаг 1). Логика поиска не тронута — только переключение видимости секций.
+// Маршрутизация экранов (шаг 1) + сбор якорей в запрос (шаг 2). Логика /search не тронута.
 (function () {
   var btns = Array.prototype.slice.call(document.querySelectorAll('.navbtn'));
   var vSearch = document.getElementById('view-search');
