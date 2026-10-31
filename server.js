@@ -86,8 +86,17 @@ const PAGE = String.raw`<!DOCTYPE html>
   :root { --bg:#0f1115; --fg:#e8eaed; --mut:#9aa0a6; --acc:#e8b34b; --line:#2a2e37; --card:#161922; }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
-  main { max-width:760px; margin:0 auto; padding:32px 20px 64px; }
+  [hidden] { display:none !important; }
+  .top { display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:760px; margin:0 auto; padding:14px 20px; border-bottom:1px solid var(--line); }
+  .brand { font-weight:700; font-size:18px; color:var(--fg); border-bottom:1px dashed var(--acc); cursor:help; }
+  .brand .ph { font-size:12px; opacity:.7; }
+  nav { display:flex; gap:6px; }
+  .navbtn { background:transparent; color:var(--mut); border:1px solid var(--line); border-radius:8px; padding:6px 12px; font-size:14px; font-weight:600; cursor:pointer; }
+  .navbtn:hover { color:var(--fg); border-color:var(--acc); }
+  .navbtn.active { color:#1a1400; background:var(--acc); border-color:var(--acc); }
+  main { max-width:760px; margin:0 auto; padding:28px 20px 64px; }
   h1 { font-size:24px; margin:0 0 6px; }
+  h2 { font-size:18px; margin:0 0 8px; }
   p.lead { color:var(--mut); margin:0 0 24px; }
   form { display:flex; gap:8px; margin-bottom:8px; }
   input[type=text] { flex:1; padding:12px 14px; border:1px solid var(--line); border-radius:10px; background:#0b0d12; color:var(--fg); font-size:16px; }
@@ -107,19 +116,34 @@ const PAGE = String.raw`<!DOCTYPE html>
   a.src { display:inline-block; margin-top:10px; color:var(--acc); text-decoration:none; font-size:14px; border-bottom:1px dashed var(--acc); }
   a.src:hover { border-bottom-style:solid; }
   mark { background:#4a3d12; color:var(--acc); padding:0 2px; border-radius:3px; }
+  .savedlist { list-style:none; margin:0; padding:0; }
 </style>
 </head>
 <body>
+<header class="top">
+  <div class="brand" title="название не утверждено — плейсхолдер до решения по бренду">Цифровой след <span class="ph">🔧</span></div>
+  <nav>
+    <button type="button" class="navbtn active" data-view="search">Поиск</button>
+    <button type="button" class="navbtn" data-view="saved">Сохранённое</button>
+  </nav>
+</header>
 <main>
-  <h1>Цифровой след</h1>
-  <p class="lead">Напиши обычными словами то, что знаешь о человеке — фамилию, имя, примерный год, место. Сервис найдёт записи в открытых архивах и покажет ссылку на первоисточник. Ничего не выдумываем: если не найдено — так и скажем.</p>
-  <form id="f" autocomplete="off">
-    <input type="text" id="q" name="q" placeholder="Например: Обруч Николай красноармеец" aria-label="Что вы знаете о человеке">
-    <button type="submit">Найти</button>
-  </form>
-  <p class="hint">Подсказка: чем больше слов (фамилия + имя + год/место/звание), тем точнее подборка.</p>
-  <p id="status" role="status" aria-live="polite"></p>
-  <div id="results"></div>
+  <section id="view-search">
+    <p class="lead">Напиши обычными словами то, что знаешь о человеке — фамилию, имя, примерный год, место. Сервис найдёт записи в открытых архивах и покажет ссылку на первоисточник. Ничего не выдумываем: если не найдено — так и скажем.</p>
+    <form id="f" autocomplete="off">
+      <input type="text" id="q" name="q" placeholder="Например: Обруч Николай красноармеец" aria-label="Что вы знаете о человеке">
+      <button type="submit">Найти</button>
+    </form>
+    <p class="hint">Подсказка: чем больше слов (фамилия + имя + год/место/звание), тем точнее подборка.</p>
+    <p id="status" role="status" aria-live="polite"></p>
+    <div id="results"></div>
+  </section>
+  <section id="view-saved" hidden>
+    <h2>Сохранённые находки</h2>
+    <p class="lead">Сюда будут попадать находки, сохранённые кнопкой «Сохранить» (шаг 7 плана). Сейчас это заглушка: список читается из локального хранилища браузера, бэкенд не подключён.</p>
+    <ul id="savedList" class="savedlist"></ul>
+    <p id="savedEmpty" class="hint">Пока ничего не сохранено. 🔧</p>
+  </section>
 </main>
 <script>
 (function () {
@@ -183,6 +207,54 @@ const PAGE = String.raw`<!DOCTYPE html>
       .then(render)
       .catch(function () { statusEl.className = 'err'; statusEl.textContent = 'Не удалось связаться с сервером.'; });
   });
+})();
+</script>
+<script>
+// Маршрутизация экранов (шаг 1). Логика поиска не тронута — только переключение видимости секций.
+(function () {
+  var btns = Array.prototype.slice.call(document.querySelectorAll('.navbtn'));
+  var vSearch = document.getElementById('view-search');
+  var vSaved = document.getElementById('view-saved');
+
+  function escapeLite(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderSaved() {
+    var list = document.getElementById('savedList');
+    var empty = document.getElementById('savedEmpty');
+    var items = [];
+    try { items = JSON.parse(localStorage.getItem('df.saved') || '[]'); } catch (e) { items = []; }
+    list.innerHTML = '';
+    if (!items.length) { empty.hidden = false; return; }
+    empty.hidden = true;
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      li.className = 'card';
+      var h = '<h2>' + (it.fullName ? escapeLite(it.fullName) : '—') + '</h2>';
+      if (it.sourceUrl) h += '<a class="src" href="' + escapeLite(it.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник ↗</a>';
+      h += '<div class="row hint">🔧 заглушка: сохранение через localStorage браузера до подключения бэкенда (шаг 7).</div>';
+      li.innerHTML = h;
+      list.appendChild(li);
+    });
+  }
+
+  function showView(name) {
+    var isSearch = (name === 'search');
+    vSearch.hidden = !isSearch;
+    vSaved.hidden = isSearch;
+    btns.forEach(function (b) { b.classList.toggle('active', b.getAttribute('data-view') === name); });
+    if (!isSearch) renderSaved();
+  }
+
+  btns.forEach(function (b) {
+    b.addEventListener('click', function () { showView(b.getAttribute('data-view')); });
+  });
+  var f = document.getElementById('f');
+  if (f) f.addEventListener('submit', function () { showView('search'); });
+
+  showView('search');
 })();
 </script>
 </body>
