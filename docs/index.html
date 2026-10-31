@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Цифровой след — поиск проверяемых следов предков в открытых архивах</title>
+<meta name="description" content="Впиши то, что помнишь о человеке — фамилию, имя, примерный год, место, звание. Сервис ищет по подготовленному индексу открытых архивов и возвращает карточку находки со ссылкой на первоисточник. Ничего не выдумываем: нет источника — нет факта, «не найдено» — валидный ответ.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%230d0f13'/><circle cx='14' cy='14' r='6' fill='none' stroke='%23e8b34b' stroke-width='2.5'/><line x1='18.5' y1='18.5' x2='24' y2='24' stroke='%23e8b34b' stroke-width='2.5' stroke-linecap='round'/></svg>">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Цифровой след">
+<meta property="og:title" content="Цифровой след — поиск проверяемых следов предков в открытых архивах">
+<meta property="og:description" content="Карточка находки со ссылкой на первоисточник и честным «чего нет». Нет источника — нет факта.">
+<!-- 🔧 og:url и og:image активировать при появлении публичного адреса; сейчас шарить некуда и картинка была бы битой ссылкой. -->
+<link rel="stylesheet" href="style.css">
+<script src="script.js" defer></script>
+</head>
+<body>
+<header class="top" id="top">
+  <div class="brand">Цифровой след <span class="ph" title="название не утверждено — плейсхолдер до решения по бренду">🔧 плейсхолдер</span></div>
+  <nav>
+    <button type="button" class="navbtn active" data-view="search">Поиск</button>
+    <button type="button" class="navbtn" data-view="saved">Сохранённое</button>
+  </nav>
+</header>
+<main>
+  <section id="view-search">
+    <div class="hero">
+      <h1>Найди <span class="em">проверяемый след</span> предка в открытых архивах</h1>
+      <p class="lead">Впиши то, что помнишь — фамилию, имя, примерный год, место, звание. Сервис соберёт по крупицам то, что уже оцифровано, и покажет <b>ссылку на первоисточник</b>. Ничего не выдумываем: если не найдено — так и скажем.</p>
+      <p class="hero-links"><a class="ghost-link" href="#how">Как это работает ↓</a></p>
+    </div>
+    <div class="panel">
+      <form id="f" autocomplete="off">
+        <div class="fields">
+          <div class="field"><label for="lastName">Фамилия</label><input type="text" id="lastName" name="lastName" placeholder="Обруч"></div>
+          <div class="field"><label for="firstName">Имя</label><input type="text" id="firstName" name="firstName" placeholder="Николай"></div>
+          <div class="field"><label for="middleName">Отчество</label><input type="text" id="middleName" name="middleName" placeholder="Фёдорович"></div>
+          <div class="field"><label for="year">Примерный год</label><input type="text" id="year" name="year" placeholder="1941 или 1941-1945"></div>
+          <div class="field"><label for="place">Место</label><input type="text" id="place" name="place" placeholder="волость, уезд, губерния"></div>
+          <div class="field"><label for="rankUnit">Звание / часть</label><input type="text" id="rankUnit" name="rankUnit" placeholder="красноармеец, 26 зап. эшелон"></div>
+          <div class="field full"><label for="anchor">Семейный документ-якорь 🔧</label><input type="text" id="anchor" name="anchor" placeholder="напр.: отчество из свидетельства о рождении сына — 16.06.1936, Алма-Ата"><div class="sub">🔧 заглушка: пока только текстовая подсказка-якорь; загрузка файла и разбор документа — позже.</div></div>
+        </div>
+        <div class="actions">
+          <button type="submit" class="go">Найти след</button>
+          <button type="button" class="reset" id="resetBtn">Сбросить</button>
+        </div>
+      </form>
+      <p class="hintline"><span class="k">Почему это работает:</span> якорь из семейного документа (отчество, точная дата, место) схлопывает шум однофамильцев — проверено на контрольном кейсе: 27 карточек → 1 точная запись.</p>
+    </div>
+    <p id="status" role="status" aria-live="polite"></p>
+    <div id="results"></div>
+
+    <section class="narr" id="how">
+      <h2 class="narr-h">Почему это работает</h2>
+      <p class="narr-p">Поиск по одной только фамилии и имени в открытых базах даёт десятки однофамильцев — это шум, а не ответ. Как только появляется якорь из семейного документа (отчество, точная дата рождения, место), подборка схлопывается до одной проверяемой записи. Поэтому форма просит не «угадать», а вспомнить: чем больше якорей — тем точнее след, и каждый из них можно сверить с первоисточником по ссылке.</p>
+    </section>
+
+    <section class="narr" id="principle">
+      <h2 class="narr-h">Принцип: нет источника — нет факта</h2>
+      <p class="narr-p">Сервис не строит родословную догадками. Каждая находка несёт ссылку на первоисточник и честное «чего нет» (пустой скан, неизвестный год или место рождения, отсутствие боевых точек). «Не найдено» — это корректный результат, а не сбой: мы не подменяем пробел выдуманной версией. Проверять связь «семейный документ → архивная запись» остаётся за тобой — сервис лишь собирает зацепки в одном месте.</p>
+    </section>
+  </section>
+
+  <section id="view-saved" hidden>
+    <h2 class="saved-head">Сохранённые находки</h2>
+    <p class="lead muted">Сюда будут попадать находки, сохранённые кнопкой «Сохранить» на карточке. Сейчас — заглушка: список читается из локального хранилища браузера, бэкенд не подключён.</p>
+    <ul id="savedList" class="savedlist"></ul>
+    <div id="savedEmpty" class="state empty"><span class="ic">🗂</span><span class="tx"><b>Пока ничего не сохранено.</b> 🔧 Найди след на вкладке «Поиск» и нажми «Сохранить» — он появится здесь.</span></div>
+  </section>
+</main>
+<footer class="foot">
+  <nav class="foot-nav">
+    <a href="#how">Как это работает</a>
+    <a href="#principle">Принцип «нет источника — нет факта»</a>
+    <a href="#top">Наверх ↑</a>
+  </nav>
+  <p class="foot-legal">Открытые данные, без обхода авторизации, капчи и лимитов источников. Персональные данные живых людей не собираем и не агрегируем.</p>
+  <p class="foot-credit">Сделано человеком и ИИ-напарником. Источники — открытые архивы. 🔧 название и слоган не утверждены.</p>
+</footer>
+</body>
+</html>
