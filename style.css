@@ -116,6 +116,29 @@ button.reset:hover { color:var(--fg); border-color:var(--acc2); }
 }
 .state .fixbtn:hover { background:var(--sepia); color:var(--acc); }
 
+/* ШАГ 6 ТЗ: блок «Агент уточняет» — детерминированный диалог. */
+.clarify {
+  margin:18px 0; padding:18px 20px; border-radius:var(--r);
+  border:1px solid var(--sepia-line); background:linear-gradient(135deg, rgba(42,33,19,.15), rgba(42,33,19,.08));
+  box-shadow:var(--shadow-soft); animation:rise .45s both;
+}
+.clarify-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+.clarify-ic { font-size:20px; line-height:1; }
+.clarify-head b { font:700 14.5px/1 var(--sans); color:var(--acc); letter-spacing:.01em; }
+.clarify-q { margin:0 0 12px; color:var(--mut); font-size:14.5px; line-height:1.55; }
+.clarify .fix { margin-top:0; }
+
+/* ШАГ 5 ТЗ: метка «Возможны однофамильцы» — предупреждение, не ошибка. */
+.multi-note {
+  display:flex; gap:12px; align-items:flex-start; margin:14px 0 18px;
+  padding:14px 16px; border-radius:var(--r-sm);
+  border:1px solid var(--line2); background:rgba(51,56,70,.08);
+  animation:rise .45s both;
+}
+.multi-note .ic { font-size:18px; line-height:1.2; flex:0 0 auto; }
+.multi-note span { color:var(--mut); font-size:13.5px; line-height:1.5; }
+.multi-note b { color:var(--fg); font-weight:600; }
+
 #results { margin-top:14px; }
 .card {
   position:relative; border:1px solid var(--line); border-radius:var(--r); background:var(--bg2);
