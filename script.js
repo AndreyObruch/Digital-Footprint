@@ -11,8 +11,10 @@
     { id: 'rankUnit',   label: 'звание или часть' },
     { id: 'anchor',     label: 'якорь из семейного документа' }
   ];
+  var CLARIFY_PRIORITY = ['middleName', 'year', 'place', 'rankUnit', 'anchor'];
   var SAVED_KEY = 'df.saved';
-  var LOW_SCORE_THRESHOLD = 2; // ниже — «мало данных для уверенного ответа»
+  var LOW_SCORE_THRESHOLD = 2;
+  var MULTI_CANDIDATE_THRESHOLD = 4;
 
   var f = document.getElementById('f');
   var statusEl = document.getElementById('status');
@@ -45,6 +47,10 @@
   function emptyAnchors() {
     return ANCHORS.filter(function (a) { return !val(a.id); });
   }
+  function anchorById(id) {
+    for (var i = 0; i < ANCHORS.length; i++) { if (ANCHORS[i].id === id) return ANCHORS[i]; }
+    return null;
+  }
 
   function missingList(r) {
     if (Array.isArray(r.missing) && r.missing.length) {
@@ -54,6 +60,49 @@
     if (r.year === '') list.push({ text: 'год рождения/выбытия' });
     if (r.place === '') list.push({ text: 'место рождения/призыва/выбытия' });
     return list;
+  }
+
+  function clarifyQuestion(results) {
+    if (!results || !results.length) return null;
+    var first = results[0];
+    var score = first.score != null ? first.score : (first.matchedWords ? first.matchedWords.length : 0);
+    var multi = results.length > 1;
+    var needClarify = (score < LOW_SCORE_THRESHOLD) || (multi && score < MULTI_CANDIDATE_THRESHOLD);
+    if (!needClarify) return null;
+    var miss = emptyAnchors();
+    if (!miss.length) return null;
+    for (var i = 0; i < CLARIFY_PRIORITY.length; i++) {
+      var id = CLARIFY_PRIORITY[i];
+      for (var j = 0; j < miss.length; j++) {
+        if (miss[j].id === id) {
+          var a = anchorById(id);
+          var question = '';
+          if (id === 'middleName') {
+            question = 'Укажи отчество — это самый сильный якорь против однофамильцев. Отчество часто есть в свидетельстве о рождении ребёнка.';
+          } else if (id === 'year') {
+            question = 'Вспомни примерный год — хотя бы десятилетие (1900-е, 1910-е, 1920-е). Это отсечёт тёзок.';
+          } else if (id === 'place') {
+            question = 'Вспомни место — волость, уезд, губерния, село. Даже примерное сильно сужает поиск.';
+          } else if (id === 'rankUnit') {
+            question = 'Если знаешь звание или часть — укажи. Это часто есть в семейных документах и письмах.';
+          } else if (id === 'anchor') {
+            question = 'Есть ли семейный документ-якорь? Например, свидетельство о рождении ребёнка, где указан отец.';
+          }
+          return { question: question, focusId: id, focusLabel: a ? a.label : id };
+        }
+      }
+    }
+    return null;
+  }
+
+  function clarifyHtml(results) {
+    var c = clarifyQuestion(results);
+    if (!c) return '';
+    return '<div class="clarify" role="note">' +
+      '<div class="clarify-head"><span class="clarify-ic" aria-hidden="true">💬</span><b>Агент уточняет</b></div>' +
+      '<p class="clarify-q">' + esc(c.question) + '</p>' +
+      '<div class="fix"><button type="button" class="fixbtn" data-focus="' + esc(c.focusId) + '">+ добавить ' + esc(c.focusLabel) + '</button></div>' +
+      '</div>';
   }
 
   function clearStatus() { statusEl.className = ''; statusEl.textContent = ''; }
@@ -94,6 +143,7 @@
     list.unshift({
       fullName: r.fullName || '', docType: r.docType || '', year: r.year || '',
       place: r.place || '', note: r.note || '', sourceUrl: r.sourceUrl || '',
+      caseRef: r.caseRef || '',
       matchedWords: r.matchedWords || [], missing: missingList(r).map(function (m) { return m.text; }),
       savedAt: new Date().toISOString()
     });
@@ -111,6 +161,9 @@
     if (r.place)   h += '<div class="row"><span class="lab">Место</span><span class="val">' + hl(r.place, words) + '</span></div>';
     h += '</div>';
     if (r.note) h += '<p class="note">' + hl(r.note, words) + '</p>';
+    if (r.caseRef) {
+      h += '<div class="case-ref"><span class="lab">Реквизиты дела</span><span class="val">' + esc(r.caseRef) + '</span></div>';
+    }
     if (words.length) {
       h += '<div class="matched"><span class="mlab">сошлось по</span>' +
         words.map(function (w) { return '<span class="chip">' + esc(w) + '</span>'; }).join('') +
@@ -125,7 +178,7 @@
     h += '<div class="card-actions">';
     if (r.sourceUrl) h += '<a class="src" href="' + esc(r.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
     var done = isSaved(r);
-    h += '<button type="button" class="savebtn' + (done ? ' done' : '') + '" data-save="' + esc(savedKey(r)) + '">' + (done ? '✓ Сохранено' : 'Сохранить 🔧') + '</button>';
+    h += '<button type="button" class="savebtn' + (done ? ' done' : '') + '" data-save="' + esc(savedKey(r)) + '">' + (done ? '✓ Сохранено' : 'Сохранить') + '</button>';
     h += '</div>';
     return h;
   }
@@ -139,9 +192,9 @@
       return;
     }
     statusEl.textContent = data.message || '';
-    // ШАГ 2 ТЗ: состояние «мало данных для уверенного ответа»
     var first = data.results[0];
     var score = first.score != null ? first.score : (first.matchedWords ? first.matchedWords.length : 0);
+    var clarify = clarifyHtml(data.results);
     if (data.results.length === 1 && score < LOW_SCORE_THRESHOLD) {
       var miss = emptyAnchors();
       var missBtns = miss.map(function (a) {
@@ -152,6 +205,12 @@
         missBtns ? '<div class="fix">' + missBtns + '</div>' : '');
       return;
     }
+    var multiNote = '';
+    if (data.results.length > 1) {
+      multiNote = '<div class="multi-note"><span class="ic" aria-hidden="true">⚠️</span><span><b>Возможны однофамильцы.</b> Найдено ' + data.results.length + ' кандидатов — проверь каждого по ссылке на первоисточник. Чтобы сузить подборку, добавь якоря (отчество, год, место).</span></div>';
+    }
+    if (clarify) resEl.insertAdjacentHTML('beforeend', clarify);
+    if (multiNote) resEl.insertAdjacentHTML('beforeend', multiNote);
     data.results.forEach(function (r, i) {
       var card = document.createElement('div');
       card.className = 'card';
@@ -220,6 +279,9 @@
       if (it.place)   h += '<div class="row"><span class="lab">Место</span><span class="val">' + esc(it.place) + '</span></div>';
       h += '</div>';
       if (it.note) h += '<p class="note">' + esc(it.note) + '</p>';
+      if (it.caseRef) {
+        h += '<div class="case-ref"><span class="lab">Реквизиты дела</span><span class="val">' + esc(it.caseRef) + '</span></div>';
+      }
       if (it.missing && it.missing.length) {
         h += '<div class="missing"><span class="mlab">Чего в источнике нет</span>' +
           it.missing.map(function (m) { return '<span class="chip chip-off">' + esc(m) + '</span>'; }).join('') + '</div>';
@@ -228,7 +290,6 @@
       if (it.sourceUrl) h += '<a class="src" href="' + esc(it.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
       h += '<button type="button" class="savebtn done" data-unsave="' + esc(savedKey(it)) + '">Удалить</button>';
       h += '</div>';
-      h += '<div class="stub">🔧 заглушка: сохранение через localStorage браузера до подключения бэкенда (шаг 7).</div>';
       li.innerHTML = h;
       list.appendChild(li);
     });
