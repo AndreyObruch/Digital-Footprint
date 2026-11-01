@@ -1,11 +1,9 @@
 const fs = require('fs');
 const path = require('path');
 
-// Resolves data dir: Amvera uses /data, local dev falls back to ./data inside project root
 function getDataDir() {
-  if (process.env.DATA_DIR) return process.env.DATA_DIR; // Explicit override for tests or custom setups
-  if (fs.existsSync('/data') && fs.statSync('/data').isDirectory()) return '/data'; // Production on Amvera
-  return path.join(__dirname, 'data'); // Local fallback
+  if (process.env.DATA_DIR) return process.env.DATA_DIR;
+  return path.join(__dirname, 'data');
 }
 
 class Store {
@@ -48,10 +46,8 @@ class Store {
     
     const existingIndex = records.findIndex(r => r._key === key);
     if (existingIndex !== -1) {
-      // Update existing entry without duplicating
       records[existingIndex] = { ...records[existingIndex], ...record };
     } else {
-      // Add new entry with generated unique internal key
       records.push({ _key: key, ...record });
     }
     
