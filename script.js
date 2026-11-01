@@ -1,4 +1,4 @@
-// Цифровой след — поведение. /search и /health не трогаем: fetch тот же, что был инлайном.
+﻿// Цифровой след — поведение. /search и /health не трогаем: fetch тот же, что был инлайном.
 (function () {
   'use strict';
 
@@ -12,6 +12,7 @@
     { id: 'anchor',     label: 'якорь из семейного документа' }
   ];
   var SAVED_KEY = 'df.saved';
+  var LOW_SCORE_THRESHOLD = 2; // ниже — «мало данных для уверенного ответа»
 
   var f = document.getElementById('f');
   var statusEl = document.getElementById('status');
@@ -45,9 +46,6 @@
     return ANCHORS.filter(function (a) { return !val(a.id); });
   }
 
-  // ---- «Чего нет»: только то, что сервер реально вернул (правило №1: не сочиняем).
-  // r.missing — курированный список из записи индекса (появится следующим мини-шагом);
-  // fallback — пустые поля year/place, которые /search отдаёт как пустые строки.
   function missingList(r) {
     if (Array.isArray(r.missing) && r.missing.length) {
       return r.missing.map(function (t) { return { text: String(t) }; });
@@ -58,7 +56,6 @@
     return list;
   }
 
-  // ---- состояния ----
   function clearStatus() { statusEl.className = ''; statusEl.textContent = ''; }
   function setLoading() {
     statusEl.className = '';
@@ -82,7 +79,6 @@
     return '<div class="fix"><button type="button" class="fixbtn" data-act="repeat">Повторить</button></div>';
   }
 
-  // ---- сохранение (🔧 localStorage-заглушка до бэкенда, шаг 7 плана) ----
   function savedKey(r) { return [r.sourceUrl || '', r.fullName || '', r.docType || ''].join('|'); }
   function loadSaved() {
     try { return JSON.parse(localStorage.getItem(SAVED_KEY) || '[]'); } catch (e) { return []; }
@@ -105,7 +101,6 @@
     return true;
   }
 
-  // ---- карточка находки ----
   function cardHtml(r, i) {
     var words = r.matchedWords || [];
     var h = '';
@@ -144,6 +139,19 @@
       return;
     }
     statusEl.textContent = data.message || '';
+    // ШАГ 2 ТЗ: состояние «мало данных для уверенного ответа»
+    var first = data.results[0];
+    var score = first.score != null ? first.score : (first.matchedWords ? first.matchedWords.length : 0);
+    if (data.results.length === 1 && score < LOW_SCORE_THRESHOLD) {
+      var miss = emptyAnchors();
+      var missBtns = miss.map(function (a) {
+        return '<button type="button" class="fixbtn" data-focus="' + a.id + '">+' + esc(a.label) + '</button>';
+      }).join('');
+      setState('lowconf',
+        '<b>Мало данных для уверенного ответа.</b> Совпадение по ' + score + ' слов' + (score === 1 ? 'у' : (score >= 2 && score <= 4 ? 'ам' : 'ам')) + ', но это может быть однофамилец. Добавь якоря из семейного документа — отчество, точный год или место — чтобы схлопнуть шум.',
+        missBtns ? '<div class="fix">' + missBtns + '</div>' : '');
+      return;
+    }
     data.results.forEach(function (r, i) {
       var card = document.createElement('div');
       card.className = 'card';
@@ -164,7 +172,6 @@
       .catch(function () { setState('error', '<b>Не удалось связаться с сервером.</b> Проверь, запущен ли сервер, и повтори поиск.', repeatButtonHtml()); });
   }
 
-  // ---- делегирование кликов по результатам/состояниям ----
   resEl.addEventListener('click', function (e) {
     var t = e.target.closest ? e.target.closest('button, a') : null;
     if (!t) return;
@@ -186,14 +193,12 @@
   var _origRender = render;
   render = function (data) { lastResults = (data && data.results) ? data.results.slice() : []; _origRender(data); };
 
-  // ---- форма ----
   if (f) f.addEventListener('submit', function (e) { e.preventDefault(); runSearch(); });
   if (resetBtn) resetBtn.addEventListener('click', function () {
     ANCHORS.forEach(function (a) { var el = document.getElementById(a.id); if (el) el.value = ''; });
     resEl.innerHTML = ''; clearStatus(); lastResults = [];
   });
 
-  // ---- навигация Поиск / Сохранённое ----
   var btns = Array.prototype.slice.call(document.querySelectorAll('.navbtn'));
   var vSearch = document.getElementById('view-search');
   var vSaved = document.getElementById('view-saved');
