@@ -151,6 +151,32 @@
     return true;
   }
 
+  // ШАГ 7 ТЗ: экспорт карточки в JSON-файл.
+  function downloadCard(r) {
+    var payload = {
+      fullName: r.fullName || '',
+      docType: r.docType || '',
+      year: r.year || '',
+      place: r.place || '',
+      note: r.note || '',
+      caseRef: r.caseRef || '',
+      sourceUrl: r.sourceUrl || '',
+      matchedWords: r.matchedWords || [],
+      missing: missingList(r).map(function (m) { return m.text; }),
+      exportedAt: new Date().toISOString()
+    };
+    var blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    var safeName = (r.fullName || 'card').replace(/[^а-яa-z0-9]+/gi, '_');
+    a.download = 'digital-footprint_' + safeName + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function cardHtml(r, i) {
     var words = r.matchedWords || [];
     var h = '';
@@ -179,6 +205,7 @@
     if (r.sourceUrl) h += '<a class="src" href="' + esc(r.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
     var done = isSaved(r);
     h += '<button type="button" class="savebtn' + (done ? ' done' : '') + '" data-save="' + esc(savedKey(r)) + '">' + (done ? '✓ Сохранено' : 'Сохранить') + '</button>';
+    h += '<button type="button" class="dlbtn" data-dl="' + esc(savedKey(r)) + '" title="Скачать карточку в JSON">⬇ Скачать</button>';
     h += '</div>';
     return h;
   }
@@ -246,6 +273,12 @@
       if (rec) { saveRecord(rec); t.classList.add('done'); t.textContent = '✓ Сохранено'; }
       return;
     }
+    if (t.hasAttribute('data-dl')) {
+      var key = t.getAttribute('data-dl');
+      var rec = lastResults.filter(function (r) { return savedKey(r) === key; })[0];
+      if (rec) downloadCard(rec);
+      return;
+    }
   });
 
   var lastResults = [];
@@ -289,6 +322,7 @@
       h += '<div class="card-actions">';
       if (it.sourceUrl) h += '<a class="src" href="' + esc(it.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
       h += '<button type="button" class="savebtn done" data-unsave="' + esc(savedKey(it)) + '">Удалить</button>';
+      h += '<button type="button" class="dlbtn" data-dl-saved="' + esc(savedKey(it)) + '" title="Скачать карточку в JSON">⬇ Скачать</button>';
       h += '</div>';
       li.innerHTML = h;
       list.appendChild(li);
@@ -308,12 +342,21 @@
   });
 
   if (vSaved) vSaved.addEventListener('click', function (e) {
-    var t = e.target.closest ? e.target.closest('button[data-unsave]') : null;
+    var t = e.target.closest ? e.target.closest('button[data-unsave], button[data-dl-saved]') : null;
     if (!t) return;
-    var key = t.getAttribute('data-unsave');
-    var list = loadSaved().filter(function (it) { return savedKey(it) !== key; });
-    try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e2) {}
-    renderSaved();
+    if (t.hasAttribute('data-unsave')) {
+      var key = t.getAttribute('data-unsave');
+      var list = loadSaved().filter(function (it) { return savedKey(it) !== key; });
+      try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e2) {}
+      renderSaved();
+      return;
+    }
+    if (t.hasAttribute('data-dl-saved')) {
+      var key = t.getAttribute('data-dl-saved');
+      var rec = loadSaved().filter(function (it) { return savedKey(it) === key; })[0];
+      if (rec) downloadCard(rec);
+      return;
+    }
   });
 
   document.addEventListener('click', function (e) {
