@@ -17,3 +17,6 @@ run:
   containerPort: "3000"
   singleton: false
   zeroDowntime: true
+  env:
+    - name: DATA_DIR
+      value: ./data
