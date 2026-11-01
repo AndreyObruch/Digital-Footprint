@@ -13,7 +13,6 @@ run:
   scriptArguments: null
   nodeArguments: null
   command: "npm start"
-  persistenceMount: /data
   containerPort: "3000"
   singleton: false
   zeroDowntime: true
