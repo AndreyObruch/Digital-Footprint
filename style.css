@@ -1,14 +1,15 @@
-/* Цифровой след — витрина. Кожа подтверждённого A1 + якорная навигация. */
+/* Цифровой след — витрина. Кожа подтверждённого A1 + якорная навигация + секция «Чего нет». */
 :root {
   --bg:#0d0f13; --bg2:#12151b; --panel:#14171f;
   --fg:#eceae4; --mut:#9a958c; --faint:#6f6a61;
   --acc:#e8b34b; --acc2:#c8923a; --sepia:#2a2113; --sepia-line:#4a3d18;
+  --miss:#6b3a3a; --miss-line:#8a4a4a; --miss-fg:#c88a8a;
   --line:#262a33; --line2:#333846;
   --shadow:0 12px 34px rgba(0,0,0,.42); --shadow-soft:0 6px 18px rgba(0,0,0,.30);
   --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
   --sans:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
   --r:14px; --r-sm:10px;
-  --head-h:57px; /* высота sticky-шапки, чтобы якоря не уезжали под неё */
+  --head-h:57px;
 }
 * { box-sizing:border-box; }
 html { -webkit-text-size-adjust:100%; scroll-behavior:smooth; }
@@ -23,7 +24,6 @@ body {
 [hidden] { display:none !important; }
 a { color:var(--acc); }
 
-/* ---- шапка ---- */
 .top {
   position:sticky; top:0; z-index:5;
   display:flex; align-items:center; justify-content:space-between; gap:14px;
@@ -43,7 +43,6 @@ nav { display:flex; gap:6px; }
 .navbtn:hover { color:var(--fg); }
 .navbtn.active { color:#1a1400; background:linear-gradient(180deg,var(--acc),var(--acc2)); border-color:var(--acc2); box-shadow:0 2px 10px rgba(232,179,75,.25); }
 
-/* ---- каркас страницы ---- */
 main { max-width:880px; margin:0 auto; padding:0 22px 40px; }
 .hero { padding:46px 0 26px; }
 .hero h1 {
@@ -61,7 +60,6 @@ main { max-width:880px; margin:0 auto; padding:0 22px 40px; }
 }
 .ghost-link:hover { color:var(--acc); border-bottom-color:var(--acc2); gap:9px; }
 
-/* ---- панель формы ---- */
 .panel {
   background:linear-gradient(180deg,var(--panel),var(--bg2));
   border:1px solid var(--line); border-radius:18px; padding:22px;
@@ -95,7 +93,6 @@ button.reset:hover { color:var(--fg); border-color:var(--acc2); }
 .hintline { color:var(--faint); font-size:12.5px; margin:14px 2px 0; line-height:1.5; }
 .hintline .k { color:var(--mut); }
 
-/* ---- статус / состояния ---- */
 #status { min-height:22px; margin:22px 2px 4px; font-size:14.5px; color:var(--mut); }
 #status.err { color:#ff9a9a; }
 .spinner { display:inline-flex; align-items:center; gap:10px; color:var(--mut); }
@@ -119,7 +116,6 @@ button.reset:hover { color:var(--fg); border-color:var(--acc2); }
 }
 .state .fixbtn:hover { background:var(--sepia); color:var(--acc); }
 
-/* ---- карточки находок ---- */
 #results { margin-top:14px; }
 .card {
   position:relative; border:1px solid var(--line); border-radius:var(--r); background:var(--bg2);
@@ -137,6 +133,16 @@ button.reset:hover { color:var(--fg); border-color:var(--acc2); }
 .matched { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
 .matched .mlab { font:600 10.5px/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--faint); margin-right:2px; }
 .chip { font:600 12px/1 var(--sans); padding:4px 9px; border-radius:999px; background:var(--sepia); color:var(--acc); border:1px solid var(--sepia-line); }
+.score { font:600 11px/1 var(--sans); color:var(--faint); margin-left:6px; letter-spacing:.04em; }
+
+/* Секция «Чего нет» — правило №15: дефект закрыт. Приглушённо-красные чипы. */
+.missing { margin-top:12px; display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+  padding:10px 12px; border:1px dashed var(--miss-line); border-radius:var(--r-sm); background:rgba(107,58,58,.08); }
+.missing .mlab { font:600 10.5px/1 var(--sans); text-transform:uppercase; letter-spacing:.08em; color:var(--miss-fg); margin-right:2px; }
+.chip-off { font:600 12px/1 var(--sans); padding:4px 9px; border-radius:999px;
+  background:var(--miss); color:var(--miss-fg); border:1px solid var(--miss-line);
+  text-decoration:line-through; text-decoration-color:rgba(200,138,138,.55); }
+
 mark { background:var(--sepia); color:var(--acc); padding:0 3px; border-radius:4px; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
 a.src { display:inline-flex; align-items:center; gap:6px; margin-top:14px; color:var(--acc); text-decoration:none;
   font:600 13.5px/1 var(--sans); border-bottom:1px dashed var(--acc2); padding-bottom:2px; transition:gap .15s, border-color .15s; }
@@ -154,20 +160,17 @@ a.src:hover .ar { transform:translate(1px,-1px); }
 
 @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 
-/* ---- нарративные секции ---- */
 .narr { margin:34px 0 0; padding:24px 0 0; border-top:1px solid var(--line); scroll-margin-top:calc(var(--head-h) + 12px); }
 .narr-h { font-family:var(--serif); font-size:22px; font-weight:700; margin:0 0 10px; letter-spacing:-.005em; }
 .narr-p { margin:0; color:var(--mut); font-size:15px; line-height:1.65; max-width:64ch; }
 .narr-p b { color:var(--fg); font-weight:600; }
 
-/* ---- сохранённое ---- */
 .saved-head { font-family:var(--serif); font-size:24px; font-weight:700; margin:34px 0 8px; }
 .lead.muted { color:var(--mut); margin:0 0 6px; max-width:62ch; }
 .savedlist { list-style:none; margin:14px 0 0; padding:0; }
 .savedlist .card { animation:none; }
 .savedlist .stub { font-size:12.5px; color:var(--faint); margin-top:8px; }
 
-/* ---- подвал ---- */
 .foot { max-width:880px; margin:0 auto; padding:26px 22px 40px; border-top:1px solid var(--line); }
 .foot-nav { display:flex; flex-wrap:wrap; gap:6px 18px; margin:0 0 14px; }
 .foot-nav a { color:var(--mut); text-decoration:none; font:600 13px/1.4 var(--sans); border-bottom:1px dashed transparent; transition:color .2s, border-color .2s; }
@@ -175,7 +178,6 @@ a.src:hover .ar { transform:translate(1px,-1px); }
 .foot-legal { margin:0 0 8px; color:var(--faint); font-size:12.5px; line-height:1.55; max-width:70ch; }
 .foot-credit { margin:0; color:var(--faint); font-size:12.5px; line-height:1.55; }
 
-/* ---- адаптив ---- */
 @media (max-width:600px) {
   .top { padding:12px 16px; }
   main { padding:0 16px 24px; }

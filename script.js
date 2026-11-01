@@ -45,6 +45,19 @@
     return ANCHORS.filter(function (a) { return !val(a.id); });
   }
 
+  // ---- «Чего нет»: только то, что сервер реально вернул (правило №1: не сочиняем).
+  // r.missing — курированный список из записи индекса (появится следующим мини-шагом);
+  // fallback — пустые поля year/place, которые /search отдаёт как пустые строки.
+  function missingList(r) {
+    if (Array.isArray(r.missing) && r.missing.length) {
+      return r.missing.map(function (t) { return { text: String(t) }; });
+    }
+    var list = [];
+    if (r.year === '') list.push({ text: 'год рождения/выбытия' });
+    if (r.place === '') list.push({ text: 'место рождения/призыва/выбытия' });
+    return list;
+  }
+
   // ---- состояния ----
   function clearStatus() { statusEl.className = ''; statusEl.textContent = ''; }
   function setLoading() {
@@ -57,7 +70,6 @@
     var ic = kind === 'error' ? '⚠️' : '🔍';
     resEl.innerHTML = '<div class="state ' + kind + '"><span class="ic">' + ic + '</span><span class="tx">' + html + (extra || '') + '</span></div>';
   }
-  // Подсказка «каких якорей не хватает» — детерминированно по пустым полям, без догадок.
   function fixButtonsHtml() {
     var miss = emptyAnchors();
     if (!miss.length) return '';
@@ -86,7 +98,8 @@
     list.unshift({
       fullName: r.fullName || '', docType: r.docType || '', year: r.year || '',
       place: r.place || '', note: r.note || '', sourceUrl: r.sourceUrl || '',
-      matchedWords: r.matchedWords || [], savedAt: new Date().toISOString()
+      matchedWords: r.matchedWords || [], missing: missingList(r).map(function (m) { return m.text; }),
+      savedAt: new Date().toISOString()
     });
     try { localStorage.setItem(SAVED_KEY, JSON.stringify(list)); } catch (e) {}
     return true;
@@ -105,7 +118,14 @@
     if (r.note) h += '<p class="note">' + hl(r.note, words) + '</p>';
     if (words.length) {
       h += '<div class="matched"><span class="mlab">сошлось по</span>' +
-        words.map(function (w) { return '<span class="chip">' + esc(w) + '</span>'; }).join('') + '</div>';
+        words.map(function (w) { return '<span class="chip">' + esc(w) + '</span>'; }).join('') +
+        ' <span class="score" title="число совпавших слов-якорей">score=' + (r.score != null ? r.score : words.length) + '</span></div>';
+    }
+    var miss = missingList(r);
+    if (miss.length) {
+      h += '<div class="missing"><span class="mlab">Чего в источнике нет</span>' +
+        miss.map(function (m) { return '<span class="chip chip-off">' + esc(m.text) + '</span>'; }).join('') +
+        '</div>';
     }
     h += '<div class="card-actions">';
     if (r.sourceUrl) h += '<a class="src" href="' + esc(r.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
@@ -155,12 +175,9 @@
     }
     if (t.getAttribute('data-act') === 'repeat') { runSearch(); return; }
     if (t.hasAttribute('data-save')) {
-      var card = t.closest('.card');
       var key = t.getAttribute('data-save');
-      // находим исходный объект по ключу среди последнего рендера
       var rec = lastResults.filter(function (r) { return savedKey(r) === key; })[0];
-      if (rec && saveRecord(rec)) { t.classList.add('done'); t.textContent = '✓ Сохранено'; }
-      else if (rec) { t.classList.add('done'); t.textContent = '✓ Сохранено'; }
+      if (rec) { saveRecord(rec); t.classList.add('done'); t.textContent = '✓ Сохранено'; }
       return;
     }
   });
@@ -173,7 +190,7 @@
   if (f) f.addEventListener('submit', function (e) { e.preventDefault(); runSearch(); });
   if (resetBtn) resetBtn.addEventListener('click', function () {
     ANCHORS.forEach(function (a) { var el = document.getElementById(a.id); if (el) el.value = ''; });
-    resEl.innerHTML = ''; clearStatus();
+    resEl.innerHTML = ''; clearStatus(); lastResults = [];
   });
 
   // ---- навигация Поиск / Сохранённое ----
@@ -191,13 +208,17 @@
     items.forEach(function (it) {
       var li = document.createElement('li');
       li.className = 'card';
-      var h = '<h2>' + esc(it.fullName || '—') + '</h2>';
+      var h = '<h2>' + (it.fullName ? esc(it.fullName) : '—') + '</h2>';
       h += '<div class="meta">';
       if (it.docType) h += '<div class="row"><span class="lab">Тип документа</span><span class="val">' + esc(it.docType) + '</span></div>';
       if (it.year)    h += '<div class="row"><span class="lab">Год</span><span class="val">' + esc(it.year) + '</span></div>';
       if (it.place)   h += '<div class="row"><span class="lab">Место</span><span class="val">' + esc(it.place) + '</span></div>';
       h += '</div>';
       if (it.note) h += '<p class="note">' + esc(it.note) + '</p>';
+      if (it.missing && it.missing.length) {
+        h += '<div class="missing"><span class="mlab">Чего в источнике нет</span>' +
+          it.missing.map(function (m) { return '<span class="chip chip-off">' + esc(m) + '</span>'; }).join('') + '</div>';
+      }
       h += '<div class="card-actions">';
       if (it.sourceUrl) h += '<a class="src" href="' + esc(it.sourceUrl) + '" target="_blank" rel="noopener noreferrer">Открыть первоисточник <span class="ar">↗</span></a>';
       h += '<button type="button" class="savebtn done" data-unsave="' + esc(savedKey(it)) + '">Удалить</button>';
@@ -220,7 +241,6 @@
     b.addEventListener('click', function () { showView(b.getAttribute('data-view')); });
   });
 
-  // удалённое из «Сохранённого»
   if (vSaved) vSaved.addEventListener('click', function (e) {
     var t = e.target.closest ? e.target.closest('button[data-unsave]') : null;
     if (!t) return;
@@ -230,7 +250,6 @@
     renderSaved();
   });
 
-  // якоря из подвала/героя: если цель спрятана на другом экране — сначала переключаемся, потом скроллим
   document.addEventListener('click', function (e) {
     var a = e.target.closest ? e.target.closest('a[href^="#"]') : null;
     if (!a) return;
@@ -239,7 +258,6 @@
     var target = document.getElementById(id);
     if (!target) return;
     if (vSearch && vSearch.hidden && target.closest('#view-search')) { showView('search'); }
-    // даём кадру переключения отработать, затем плавно скроллим
     setTimeout(function () { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 0);
   });
 
